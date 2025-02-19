@@ -1,0 +1,77 @@
+.container {
+  padding: 20px;
+}
+
+.file-input-container {
+  margin-top: 10px;
+}
+
+.file-input-container input[type="file"] {
+  margin-right: 10px;
+}
+
+.emitente-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100%;
+  margin-top: 20px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.emitente-container div {
+  flex: 1;
+  min-width: 200px;
+  margin-right: 20px;
+}
+
+.agendamento-container {
+  flex: 1;
+  min-width: 200px;
+  margin-right: 20px;
+  display: contents;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100%;
+  margin-top: 20px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  box-sizing: border-box;
+  background-color: rgb(216, 22, 71);
+}
+
+.agendamento-input {
+  margin-bottom: 10px;
+}
+
+.agendamento-input label {
+  margin-right: 10px;
+}
+
+.agendamento-input input {
+  margin-left: 10px;
+}
+
+.items-container {
+  margin-top: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #f2f2f2;
+}
