@@ -6,6 +6,7 @@ const cors = require("cors");
 const testarConexaoOracle = require("./testConnection");
 const fs = require("fs");
 const xml2js = require("xml2js");
+require("dotenv").config();
 
 const app = express();
 const port = 3002;
@@ -38,11 +39,12 @@ async function verificarNotaNoBanco(chNFE) {
   let connection;
 
   const dbConfig = {
-    user: "TESTE",
-    password: "TS98BOCCHI",
-    connectString:
-      "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.0.42)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=TESTE)))",
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    connectString: `(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${process.env.DB_HOST})(PORT=${process.env.DB_PORT}))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=${process.env.DB_SERVICE_NAME})))`,
   };
+
+  console.log(dbConfig);
 
   try {
     connection = await oracledb.getConnection(dbConfig);
@@ -53,7 +55,15 @@ async function verificarNotaNoBanco(chNFE) {
       [chNFE]
     );
 
-    return result.rows.length > 0 ? result.rows[0][0] : "não encontrada";
+    console.log("Resultado da consulta:", result.rows);
+    if (result.rows.length > 0) {
+      const statusNota = result.rows[0][0];
+      return statusNota === "L"
+        ? "Liberada para Agendamento"
+        : "BLoqueada para Agendamento";
+    } else {
+      return "não encontrada";
+    }
   } catch (err) {
     console.error(err);
     return "erro";
@@ -91,21 +101,60 @@ app.post("/verificar-nota", upload.single("notaXML"), async (req, res) => {
       UF: emitente.enderEmit?.[0].UF?.[0] || "Não informado",
     };
 
+    // Extrair informações do destinatáio
+    const destinatario = result.nfeProc.NFe[0].infNFe[0].dest[0];
+    const destinatarioInfo = {
+      CNPJ: destinatario.CNPJ?.[0] || "Não informado",
+      xNome: destinatario.xNome?.[0] || "Não informado",
+      xMun: destinatario.enderDest?.[0].xMun?.[0] || "Não informado",
+      UF: destinatario.enderDest?.[0].UF?.[0] || "Não informado",
+    };
+
     // Extrair chave da NFe
     const chNFe = result.nfeProc.NFe[0].infNFe[0].$.Id.replace(/^NFe/, "");
-    const status = await verificarNotaNoBanco(chNFe);
+    console.log("Chave da NFe:", chNFe); // Log da chave da NFe para verificar se está correta
+
+    let statusNota = "não verificado"; // Defina um valor padrão
+
+    try {
+      statusNota = await verificarNotaNoBanco(chNFe);
+      console.log("Status retornado do banco:", statusNota); // Log do status retornado do banco
+    } catch (error) {
+      console.error("Erro ao verificar nota no banco:", error);
+      statusNota = "erro"; // Defina um valor de fallback em caso de erro
+    }
 
     // Extrair informações dos produtos
-    const items = result.nfeProc.NFe[0].infNFe[0].det.map((det) => {
-      const prod = det.prod[0];
-      return {
-        nItem: det.$.nItem,
-        cProd: prod.cProd?.[0] || "",
-        // ... outros campos com verificações similares ...
-      };
-    });
 
-    res.json({ emitente: emitenteInfo, status, items });
+    const items =
+      result.nfeProc?.NFe?.[0]?.infNFe?.[0]?.det?.map((det) => {
+        const prod = det.prod?.[0] || {}; // Se det.prod[0] não existir, define como objeto vazio
+        return {
+          cProd: prod.cProd?.[0] || "Não informado",
+          cEAN: prod.cEAN?.[0] || "Não informado",
+          xProd: prod.xProd?.[0] || "Não informado",
+          NCM: prod.NCM?.[0] || "Não informado",
+          CEST: prod.CEST?.[0] || "Não informado",
+          CFOP: prod.CFOP?.[0] || "Não informado",
+          uCom: prod.uCom?.[0] || "Não informado",
+          qCom: prod.qCom?.[0] || "Não informado",
+          vUnCom: prod.vUnCom?.[0] || "Não informado",
+          vProd: prod.vProd?.[0] || "Não informado",
+          cEANTrib: prod.cEANTrib?.[0] || "Não informado",
+          uTrib: prod.uTrib?.[0] || "Não informado",
+          qTrib: prod.qTrib?.[0] || "Não informado",
+          vUnTrib: prod.vUnTrib?.[0] || "Não informado",
+          indTot: prod.indTot?.[0] || "Não informado",
+          nItemPed: prod.nItemPed?.[0] || "Não informado",
+        };
+      }) || []; // Se result.nfeProc?.NFe?.[0]?.infNFe?.[0]?.det for undefined, define items como array vazio
+
+    res.json({
+      emitente: emitenteInfo,
+      destinatario: destinatarioInfo,
+      statusNota,
+      items,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erro ao processar a nota" });
